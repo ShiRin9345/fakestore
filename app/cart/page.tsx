@@ -53,22 +53,25 @@ export default function CartPage() {
   const handleUpdateQuantity = async (id: number, quantity: number) => {
     // Optimistic update: update UI immediately
     const previousItems = [...cartItems];
-    const previousQuantity = cartItems.find((item) => item.id === id)?.quantity || 0;
-    
+    const previousQuantity =
+      cartItems.find((item) => item.id === id)?.quantity || 0;
+
     setCartItems((items) =>
       items.map((item) => (item.id === id ? { ...item, quantity } : item))
     );
-    
+
     // Update cart count optimistically
     const quantityDiff = quantity - previousQuantity;
     if (quantityDiff !== 0) {
-      window.dispatchEvent(new CustomEvent("cartUpdated", {
-        detail: {
-          type: quantityDiff > 0 ? "increment" : "decrement",
-          optimistic: true,
-          count: Math.abs(quantityDiff),
-        },
-      }));
+      window.dispatchEvent(
+        new CustomEvent("cartUpdated", {
+          detail: {
+            type: quantityDiff > 0 ? "increment" : "decrement",
+            optimistic: true,
+            count: Math.abs(quantityDiff),
+          },
+        })
+      );
     }
 
     try {
@@ -84,32 +87,38 @@ export default function CartPage() {
         // Rollback on error
         setCartItems(previousItems);
         if (quantityDiff !== 0) {
-          window.dispatchEvent(new CustomEvent("cartUpdated", {
-            detail: {
-              type: quantityDiff > 0 ? "decrement" : "increment",
-              optimistic: true,
-              count: Math.abs(quantityDiff),
-            },
-          }));
+          window.dispatchEvent(
+            new CustomEvent("cartUpdated", {
+              detail: {
+                type: quantityDiff > 0 ? "decrement" : "increment",
+                optimistic: true,
+                count: Math.abs(quantityDiff),
+              },
+            })
+          );
         }
       }
-      
+
       // Refresh cart count from server
-      window.dispatchEvent(new CustomEvent("cartUpdated", {
-        detail: { type: "refresh" },
-      }));
+      window.dispatchEvent(
+        new CustomEvent("cartUpdated", {
+          detail: { type: "refresh" },
+        })
+      );
     } catch (error) {
       console.error("Failed to update quantity:", error);
       // Rollback on error
       setCartItems(previousItems);
       if (quantityDiff !== 0) {
-        window.dispatchEvent(new CustomEvent("cartUpdated", {
-          detail: {
-            type: quantityDiff > 0 ? "decrement" : "increment",
-            optimistic: true,
-            count: Math.abs(quantityDiff),
-          },
-        }));
+        window.dispatchEvent(
+          new CustomEvent("cartUpdated", {
+            detail: {
+              type: quantityDiff > 0 ? "decrement" : "increment",
+              optimistic: true,
+              count: Math.abs(quantityDiff),
+            },
+          })
+        );
       }
     }
   };
@@ -118,18 +127,20 @@ export default function CartPage() {
     // Optimistic update: remove item immediately
     const itemToDelete = cartItems.find((item) => item.id === id);
     const previousItems = [...cartItems];
-    
+
     setCartItems((items) => items.filter((item) => item.id !== id));
-    
+
     // Update cart count optimistically
     if (itemToDelete) {
-      window.dispatchEvent(new CustomEvent("cartUpdated", {
-        detail: {
-          type: "decrement",
-          optimistic: true,
-          count: itemToDelete.quantity,
-        },
-      }));
+      window.dispatchEvent(
+        new CustomEvent("cartUpdated", {
+          detail: {
+            type: "decrement",
+            optimistic: true,
+            count: itemToDelete.quantity,
+          },
+        })
+      );
     }
 
     try {
@@ -141,32 +152,38 @@ export default function CartPage() {
         // Rollback on error
         setCartItems(previousItems);
         if (itemToDelete) {
-          window.dispatchEvent(new CustomEvent("cartUpdated", {
-            detail: {
-              type: "increment",
-              optimistic: true,
-              count: itemToDelete.quantity,
-            },
-          }));
+          window.dispatchEvent(
+            new CustomEvent("cartUpdated", {
+              detail: {
+                type: "increment",
+                optimistic: true,
+                count: itemToDelete.quantity,
+              },
+            })
+          );
         }
       } else {
         // Refresh cart count from server
-        window.dispatchEvent(new CustomEvent("cartUpdated", {
-          detail: { type: "refresh" },
-        }));
+        window.dispatchEvent(
+          new CustomEvent("cartUpdated", {
+            detail: { type: "refresh" },
+          })
+        );
       }
     } catch (error) {
       console.error("Failed to delete item:", error);
       // Rollback on error
       setCartItems(previousItems);
       if (itemToDelete) {
-        window.dispatchEvent(new CustomEvent("cartUpdated", {
-          detail: {
-            type: "increment",
-            optimistic: true,
-            count: itemToDelete.quantity,
-          },
-        }));
+        window.dispatchEvent(
+          new CustomEvent("cartUpdated", {
+            detail: {
+              type: "increment",
+              optimistic: true,
+              count: itemToDelete.quantity,
+            },
+          })
+        );
       }
     }
   };

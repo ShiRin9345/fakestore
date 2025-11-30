@@ -27,12 +27,12 @@ export function Navbar() {
     };
 
     fetchCartCount();
-    
+
     // Listen for cart updates with optimistic updates
     const handleCartUpdate = (event: Event) => {
       const customEvent = event as CustomEvent;
       const detail = customEvent.detail || {};
-      
+
       if (detail.optimistic) {
         // Optimistic update: update UI immediately
         const count = detail.count || 1;
@@ -49,9 +49,9 @@ export function Navbar() {
         fetchCartCount();
       }
     };
-    
+
     window.addEventListener("cartUpdated", handleCartUpdate);
-    
+
     return () => {
       window.removeEventListener("cartUpdated", handleCartUpdate);
     };
