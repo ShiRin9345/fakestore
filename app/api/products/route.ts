@@ -20,7 +20,7 @@ export async function GET(request: NextRequest) {
         `FakeStoreAPI error: ${response.status} ${response.statusText}`
       );
       return NextResponse.json(
-        { error: "Failed to fetch products", products: [] },
+        { error: "Failed to fetch products", products: [], response },
         { status: 500 }
       );
     }
