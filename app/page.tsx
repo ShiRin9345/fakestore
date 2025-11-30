@@ -1,65 +1,173 @@
-import Image from "next/image";
+"use client";
+
+import { useEffect, useState, useRef, useCallback } from "react";
+import { ProductCard } from "@/components/ProductCard";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface Product {
+  id: number;
+  title: string;
+  price: number;
+  image: string;
+  category: string;
+}
 
 export default function Home() {
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [displayedProducts, setDisplayedProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
+  const itemsPerPage = 5;
+  const observerTarget = useRef<HTMLDivElement>(null);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch("/api/categories");
+      const data = await response.json();
+      setCategories(data);
+    } catch (error) {
+      console.error("Failed to fetch categories:", error);
+    }
+  };
+
+  const fetchProducts = useCallback(
+    async (category: string, reset: boolean = false) => {
+      setLoading(true);
+
+      try {
+        let url = "/api/products?";
+        if (category !== "all") {
+          url += `category=${category}`;
+        }
+
+        const response = await fetch(url);
+        const data = await response.json();
+
+        if (reset) {
+          setAllProducts(data);
+          // Display first page
+          const firstPage = data.slice(0, itemsPerPage);
+          setDisplayedProducts(firstPage);
+          setPage(0);
+          // If we have exactly itemsPerPage or less, there's no more to load
+          setHasMore(data.length > itemsPerPage);
+        } else {
+          // This shouldn't be called when reset is false, but handle it anyway
+          setAllProducts(data);
+          const firstPage = data.slice(0, itemsPerPage);
+          setDisplayedProducts(firstPage);
+          setHasMore(data.length > itemsPerPage);
+        }
+      } catch (error) {
+        console.error("Failed to fetch products:", error);
+        setHasMore(false);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [itemsPerPage]
+  );
+
+  useEffect(() => {
+    fetchCategories();
+  }, []);
+
+  useEffect(() => {
+    setPage(0);
+    setHasMore(true);
+    fetchProducts(selectedCategory, true);
+  }, [selectedCategory, fetchProducts]);
+
+  useEffect(() => {
+    // Load more products when scrolling to bottom
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (
+          entries[0].isIntersecting &&
+          hasMore &&
+          !loading &&
+          allProducts.length > 0
+        ) {
+          setPage((currentPage) => {
+            const nextPage = currentPage + 1;
+            const startIndex = nextPage * itemsPerPage;
+            const endIndex = startIndex + itemsPerPage;
+            const nextProducts = allProducts.slice(startIndex, endIndex);
+
+            if (nextProducts.length > 0) {
+              setDisplayedProducts((prev) => {
+                // Remove duplicates based on product id
+                const existingIds = new Set(prev.map((p) => p.id));
+                const newProducts = nextProducts.filter(
+                  (p) => !existingIds.has(p.id)
+                );
+                return [...prev, ...newProducts];
+              });
+              setHasMore(endIndex < allProducts.length);
+              return nextPage;
+            } else {
+              setHasMore(false);
+              return currentPage;
+            }
+          });
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    const currentTarget = observerTarget.current;
+    if (currentTarget) {
+      observer.observe(currentTarget);
+    }
+
+    return () => {
+      if (currentTarget) {
+        observer.unobserve(currentTarget);
+      }
+    };
+  }, [hasMore, loading, allProducts, itemsPerPage]);
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-6">Products</h1>
+
+      <Tabs
+        value={selectedCategory}
+        onValueChange={setSelectedCategory}
+        className="mb-8"
+      >
+        <TabsList>
+          <TabsTrigger value="all">All</TabsTrigger>
+          {categories.map((category) => (
+            <TabsTrigger key={category} value={category}>
+              {category.charAt(0).toUpperCase() + category.slice(1)}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        {displayedProducts.map((product) => (
+          <ProductCard key={product.id} product={product} />
+        ))}
+      </div>
+
+      {loading && (
+        <div className="text-center py-8">
+          <p>Loading...</p>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      )}
+
+      <div ref={observerTarget} className="h-10" />
+
+      {!hasMore && displayedProducts.length > 0 && (
+        <div className="text-center py-8">
+          <p className="text-muted-foreground">No more products to load</p>
         </div>
-      </main>
+      )}
     </div>
   );
 }
