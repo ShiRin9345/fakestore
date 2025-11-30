@@ -26,10 +26,19 @@ export default function Home() {
   const fetchCategories = async () => {
     try {
       const response = await fetch("/api/categories");
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
       const data = await response.json();
-      setCategories(data);
+
+      // Check if data is an array, if not try to get categories from error response
+      const categories = Array.isArray(data) ? data : data.categories || [];
+      setCategories(categories);
     } catch (error) {
       console.error("Failed to fetch categories:", error);
+      setCategories([]);
     }
   };
 
@@ -44,25 +53,35 @@ export default function Home() {
         }
 
         const response = await fetch(url);
+
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
         const data = await response.json();
 
+        // Check if data is an array, if not try to get products from error response
+        const products = Array.isArray(data) ? data : data.products || [];
+
         if (reset) {
-          setAllProducts(data);
+          setAllProducts(products);
           // Display first page
-          const firstPage = data.slice(0, itemsPerPage);
+          const firstPage = products.slice(0, itemsPerPage);
           setDisplayedProducts(firstPage);
           setPage(0);
           // If we have exactly itemsPerPage or less, there's no more to load
-          setHasMore(data.length > itemsPerPage);
+          setHasMore(products.length > itemsPerPage);
         } else {
           // This shouldn't be called when reset is false, but handle it anyway
-          setAllProducts(data);
-          const firstPage = data.slice(0, itemsPerPage);
+          setAllProducts(products);
+          const firstPage = products.slice(0, itemsPerPage);
           setDisplayedProducts(firstPage);
-          setHasMore(data.length > itemsPerPage);
+          setHasMore(products.length > itemsPerPage);
         }
       } catch (error) {
         console.error("Failed to fetch products:", error);
+        setAllProducts([]);
+        setDisplayedProducts([]);
         setHasMore(false);
       } finally {
         setLoading(false);

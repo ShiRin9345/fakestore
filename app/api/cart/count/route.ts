@@ -7,7 +7,7 @@ import { eq, sql } from "drizzle-orm";
 export async function GET(request: NextRequest) {
   try {
     const session = await auth.api.getSession({ headers: request.headers });
-    
+
     if (!session?.user) {
       return NextResponse.json({ count: 0 });
     }
@@ -19,8 +19,7 @@ export async function GET(request: NextRequest) {
 
     const count = Number(result[0]?.count || 0);
     return NextResponse.json({ count });
-  } catch (error) {
+  } catch {
     return NextResponse.json({ count: 0 });
   }
 }
-
